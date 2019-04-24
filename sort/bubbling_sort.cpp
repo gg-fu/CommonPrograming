@@ -1,8 +1,12 @@
-/**************************************
- * Title:quick sort
- * Autor:BruvinLu
- * Edit Time:2019-4-24
-**************************************/
+/************************************************
+ *      Title: bubbling
+ *      Describe:
+ *              Average 	O(n2)
+ *              performance    stable
+ *      Autor:BruvinLu
+ *      Time:2019-4-24
+************************************************/
+
 #include <iostream>
 #include <stdbool.h>
 #include <string.h>

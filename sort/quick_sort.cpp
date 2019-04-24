@@ -1,8 +1,12 @@
-/**************************************
- * Title:quick sort
- * Autor:BruvinLu
- * Edit Time:2019-4-24
-**************************************/
+/************************************************
+ *      Title: quick_sort
+ *      Describe:
+ *              Average complexity  O(nlog2n),Worst O(n2) 
+ *              performance     Instable
+ *      Autor:BruvinLu
+ *      Time:2019-4-24
+************************************************/
+
 #include <iostream>
 #include <stack>
 #include <string.h>
