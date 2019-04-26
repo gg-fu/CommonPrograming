@@ -15,6 +15,8 @@ int binary_search(int s[],int start,int end,int number)
 	int r = end;
 	int l = start;
 	int mid = (r+l)/2;
+	if(start > end)
+		return -1;
 	if(s[mid] == number)
 		return mid;
 	else if(s[mid] > number)
