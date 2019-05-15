@@ -1,6 +1,4 @@
-# ubus_test_server
-
-
-# cmake
+# libevent-buffer
+# depend libevent2 
 # make
-  ./server
+  ./main
