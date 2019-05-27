@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include "queue.h"
 
 queue *init_queue(int max_size)
 {
@@ -39,8 +40,8 @@ void enqueue(queue* q,void *data)
     /* 写数据,并移动指针 */  
     q->data[q->_tail] = data;  
     q->_tail++;  
-    if (q->tail >= QUEUE_SIZE)  
-        q->tail = 0;  
+    if (q->_tail >= QUEUE_SIZE)  
+        q->_tail = 0;  
     /* 设置缓冲区非空的条件变量*/  
     pthread_cond_signal(&q->notempty);  
     pthread_mutex_unlock(&q->lock);
@@ -57,8 +58,8 @@ void dequeue(queue* q,void **data)
     /* 写数据,并移动指针 */
     *data = q->data[q->_head];     
     q->_head++;   
-    if (q->head >= QUEUE_SIZE)     
-        q->head = 0;    
+    if (q->_head >= QUEUE_SIZE)     
+        q->_head = 0;    
     /* 设置缓冲区非空的条件变量*/
     pthread_cond_signal(&q->notfull);
     pthread_mutex_unlock(&q->lock);

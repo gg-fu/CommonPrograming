@@ -10,9 +10,11 @@
 #include <event2/bufferevent_ssl.h>
 #include "TcpClient.h"
 #include "AES.h"
-
+#include "queue.h"
 #define IP "127.0.0.1"
 #define PORT 6000
+
+queue *q;
 CTcpClient TcpClient;
 static int g_ntime = 10;
 struct bufferevent *g_sBev = NULL;
@@ -26,7 +28,8 @@ void ReadMes(struct bufferevent* bev, void* arg)
     int ret = TcpClient.RecvDataFromServer(bev,msg);
     if(ret)
     {
-	aes_decrypt_ebc((unsigned char *)"aeskey",msg,ret,buf,1024);
+	//aes_decrypt_ebc((unsigned char *)"aeskey",msg,ret,buf,1024);
+	enqueue(q,msg);
 	printf("recv data is :%s\n",msg);
     }
 }
@@ -164,16 +167,37 @@ void *connect_event(void *arg)
     // 事件循环结束 资源清理 
     event_base_free(pEventBase);
 }
-// 创建一个新线程，在新线程里初始化libevent读事件的相关设置，并开启event_base_dispatch
-void init_thread(int sock)
+
+void *read_queue(void *arg)
 {
+    void *data;
+    while (1)  
+    {  
+        dequeue(q,&data);  
+        printf("--->%s \n", (char *)data);  
+    }  
+    return NULL;
+}
+
+// 创建一个新线程，在新线程里初始化libevent读事件的相关设置，并开启event_base_dispatch
+void thread_worker(void *(*func)(void *),void *arg)
+{
+    int ret;
     pthread_t thread;
-    pthread_create(&thread,NULL,connect_event,(void*)&sock);
-    pthread_detach(thread);
+    ret = pthread_create(&thread,NULL,func,arg);
+    if(ret != 0)
+    {
+	perror("pthread_create failed\n");
+	return;
+    }
+    
 }
 int main(int argc, char *argv[])
 {
-	init_thread(4);
+    q = init_queue(QUEUE_SIZE);
+
+    thread_worker(read_queue,NULL);
+    thread_worker(connect_event,NULL);
     while(1);
     return 0;
 }
