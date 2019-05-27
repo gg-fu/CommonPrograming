@@ -9,6 +9,7 @@
 #include <openssl/ssl.h>
 #include <event2/bufferevent_ssl.h>
 #include "TcpClient.h"
+#include "AES.h"
 
 #define IP "127.0.0.1"
 #define PORT 6000
@@ -20,8 +21,14 @@ void tcp_reconnect(struct bufferevent* bev,struct bufferevent *socketEvent,buffe
 // 读服务端发来的数据 
 void ReadMes(struct bufferevent* bev, void* arg)
 {
-	printf("read_msg_cb\n");
-       
+    char msg[1024] = {0};
+    unsigned char buf[1024]={0};
+    int ret = TcpClient.RecvDataFromServer(bev,msg);
+    if(ret)
+    {
+	aes_decrypt_ebc((unsigned char *)"aeskey",msg,ret,buf,1024);
+	printf("recv data is :%s\n",msg);
+    }
 }
 
 // 连接断开或者出错回调 
@@ -129,7 +136,8 @@ static void signal_cb(evutil_socket_t sig, short events, void *user_data)
 
     printf("Caught an interrupt signal; exiting cleanly in two seconds.\n");
     //如果有事件,处理完当前事件退出 
-    event_base_loopexit(base, &delay);
+    //event_base_loopexit(base, &delay);
+    event_base_loopexit(base, NULL);
 }
 
 void *connect_event(void *arg)

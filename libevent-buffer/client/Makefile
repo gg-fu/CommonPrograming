@@ -6,6 +6,7 @@ CPP = g++
 SRC += $(wildcard *.cpp)
 SRC += $(wildcard src/*.cc)
 SRC += $(wildcard src/*.cpp)
+SRC += $(wildcard src/*.c)
 
 CPPFLAGS += -I ./include
 CPPFLAGS += -I	/usr/local/protobuf/include
