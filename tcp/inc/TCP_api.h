@@ -2,7 +2,7 @@
 #define _TCP_API_H
 #include <stdint.h>
 
-
+#define PREREAD_LEN   4
 uintptr_t TCP_Establish(const char *host, uint16_t port);
 int TCP_Destroy(uintptr_t fd);
 int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_ms);

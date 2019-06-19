@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netinet/tcp.h>
+#include <stdlib.h>
 #include <netdb.h>
 #include <errno.h>
 #include "TCP_api.h"
@@ -149,6 +150,8 @@ int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_
     return len_sent;
 }
 
+
+
 int32_t TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
 {
     int ret, err_code;
@@ -199,3 +202,57 @@ int32_t TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
     return (0 != len_recv) ? len_recv : err_code;
 }
 
+
+int Send_Message(uintptr_t fd, const char *buf, uint32_t length, uint32_t timeout_ms)
+{
+    int sendbuflen = 4 + length; 
+    unsigned char* sendbuf = (unsigned char *)malloc(sendbuflen);
+    if (!sendbuf){
+        printf("GWTcpClient::SendMsg error \n");
+        return -1;
+    }
+
+    memset(sendbuf, 0, sendbuflen);
+    //len
+    sendbuf[0] = (length>>24)&0xff;
+    sendbuf[1] = (length>>16)&0xff;
+    sendbuf[2] = (length>>8)&0xff;
+    sendbuf[3] = length&0xff;
+   
+    memcpy(sendbuf + 4, buf, length);
+    int ret = TCP_Write(fd, sendbuf, sendbuflen, timeout_ms);
+	
+    free(sendbuf);
+    if(ret == sendbuflen)
+	return 0;
+    else
+	return -1;
+} 
+
+int32_t Read_Message(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
+{
+    unsigned char packetlen_buf[PREREAD_LEN+1] = {0};
+    int byte_num = recv(fd, packetlen_buf, PREREAD_LEN, 0);
+    if (byte_num <= 0){
+    	printf("RECV MSG ERROR !!!\n");
+        return -1;
+    }
+
+    if (byte_num != PREREAD_LEN){
+        printf("read packet length,RECV MSG ERROR !!!\n");
+        return -1;
+    }
+	
+    unsigned int packetlen = (packetlen_buf[0]<<24)
+                            |(packetlen_buf[1]<<16)
+                            |(packetlen_buf[2]<<8)
+                            |packetlen_buf[3];
+    printf("packet length = %u ......\n", packetlen);
+    if(packetlen > len)
+    {
+ 	printf("packetlen great than input length\n");
+	packetlen = len;
+    }
+    int ret = TCP_Read(fd, buf, packetlen, timeout_ms); 
+    return ret;
+}
