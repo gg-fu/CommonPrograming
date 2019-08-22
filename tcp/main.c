@@ -2,51 +2,54 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "TCP_api.h"
-#include "iot_log.h"
+#include "utils_net.h"
 #define DATA "hello world"
+#define HOST "192.168.1.168"
+#define PORT 8888
+static utils_network_t pNetwork = {0};
 
-#define utils_warning(...) log_warning("tcp",__VA_ARGS__)
-#define utils_info(...) log_info("tcp",__VA_ARGS__)
-#define utils_err(...) log_err("tcp",__VA_ARGS__)
-#define utils_debug(...) log_debug("tcp",__VA_ARGS__)
+static int ConnectToServer()
+{
+	int ret;
+	ret = pNetwork.connect(&pNetwork);
+	if( ret == -1){
+		tcp_err("ConnectToServer failed\n");
+		return -1;
+	}
+	return 0;	
+}
+
 int main(int argc,char *argv[])
 {
-    int fd = -1;
-    LITE_openlog("TCP-CLIENT");
-    LITE_set_loglevel(LOG_DEBUG_LEVEL);
-    utils_info("start tcp client\n");
-    if(argc != 5)
-    {
-	utils_err("please input -i IP -p port\n");
-	return -1;
-    }
-    fd = TCP_Establish(argv[2], atoi(argv[4]));
-    while(fd == 0){
-	utils_warning("reconnect \n");
-	fd = TCP_Establish(argv[2], atoi(argv[4]));
-	sleep(5);
-    }
-    utils_debug("fd:%d\n",fd);
-    int ret = TCP_Write(fd,DATA,strlen(DATA), 100);
-    char buf[125]={0};
-    while(1){
-	memset(buf,0,sizeof(buf));
-	ret = TCP_Read(fd, buf, strlen(DATA), 100);
-	if(ret == -1)
-	{
-	    utils_warning("connect close\n");
-	    break;
+    	int fd = -1;
+	char buff[4096] = {0};
+    	LITE_openlog("TCP-CLIENT");
+    	LITE_set_loglevel(LOG_DEBUG_LEVEL);
+    	tcp_info("start tcp client\n");
+	
+	int ret = iotx_net_init(&pNetwork , HOST , PORT , NULL, NULL);
+	if(ret == -1){
+		tcp_err("iotx_net_init failed\n");
+		goto exit;
 	}
-	else if(ret > 0)
-	   utils_info("recv buf:%s\n",buf);
-	else{
-	    utils_warning("recv data failed\n");
-	    continue;
+	ret = ConnectToServer();
+	if(ret == -1){
+		tcp_err("iotx_net_connect failed\n");
+		goto exit;
 	}
-    }
-    TCP_Destroy(fd);
-    LITE_closelog();
-    return 0;
+	
+	while(1){
+		memset(buff,0,sizeof(buff));
+		ret = pNetwork.read(&pNetwork,buff,sizeof(buff),200);
+		if(ret == 0){
+			ret = pNetwork.write(&pNetwork,buff,sizeof(buff),200);
+		}	
+		else
+			sleep(1);	
+	}
+exit:
+	pNetwork.disconnect(&pNetwork);
+    	LITE_closelog();
+    	return 0;
 }
 

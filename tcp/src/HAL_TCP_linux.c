@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <netdb.h>
 #include <errno.h>
-#include "TCP_api.h"
+#include "HAL_TCP_linux.h"
 static uint64_t tcp_get_time_ms(void)
 {
     struct timeval tv = { 0 };
@@ -30,7 +30,7 @@ static uint64_t tcp_time_left(uint64_t t_end, uint64_t t_now)
     return t_left;
 }
 
-uintptr_t TCP_Establish(const char *host, uint16_t port)
+uintptr_t HAL_TCP_Establish(const char *host, uint16_t port)
 {
     struct addrinfo hints;
     struct addrinfo *addrInfoList = NULL;
@@ -44,18 +44,18 @@ uintptr_t TCP_Establish(const char *host, uint16_t port)
     hints.ai_protocol = IPPROTO_TCP;
     sprintf(service, "%u", port);
     if ((rc = getaddrinfo(host, service, &hints, &addrInfoList)) != 0) {
-        perror("getaddrinfo error");
+        tcp_err("getaddrinfo error");
         return 0;
     }
     for (cur = addrInfoList; cur != NULL; cur = cur->ai_next) {
         if (cur->ai_family != AF_INET) {
-            perror("socket type error");
+            tcp_err("socket type error");
             rc = 0;
             continue;
         }
         fd = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol);
         if (fd < 0) {
-            perror("create socket error");
+            tcp_err("create socket error");
             rc = 0;
             continue;
         }
@@ -64,37 +64,37 @@ uintptr_t TCP_Establish(const char *host, uint16_t port)
             break;
         }
         close(fd);
-        perror("connect error");
+        tcp_err("connect error");
         rc = 0;
     }
     if (0 == rc) {
-        perror("fail to establish tcp");
+        tcp_err("fail to establish tcp");
     } else {
-        perror("success to establish tcp");
+        tcp_err("success to establish tcp");
     }
     freeaddrinfo(addrInfoList);
     return (uintptr_t)rc;
 }
 
 
-int TCP_Destroy(uintptr_t fd)
+int HAL_TCP_Destroy(uintptr_t fd)
 {
     int rc;
     /* Shutdown both send and receive operations. */
     rc = shutdown((int) fd, 2);
     if (0 != rc) {
-        perror("shutdown error");
+        tcp_err("shutdown error");
         return -1;
     }
     rc = close((int) fd);
     if (0 != rc) {
-        perror("closesocket error");
+        tcp_err("closesocket error");
         return -1;
     }
     return 0;
 }
 
-int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_ms)
+int32_t HAL_TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_ms)
 {
     int ret;
     uint32_t len_sent;
@@ -114,20 +114,20 @@ int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_
             ret = select(fd + 1, NULL, &sets, NULL, &timeout);
             if (ret > 0) {
                 if (0 == FD_ISSET(fd, &sets)) {
-                    perror("Should NOT arrive");
+                    tcp_err("Should NOT arrive");
                     /* If timeout in next loop, it will not sent any data */
                     ret = 0;
                     continue;
                 }
             } else if (0 == ret) {
-                perror("select-write timeout ");
+                tcp_err("select-write timeout ");
                 break;
             } else {
                 if (EINTR == errno) {
-                    perror("EINTR be caught");
+                    tcp_err("EINTR be caught");
                     continue;
                 }
-                perror("select-write fail");
+                tcp_err("select-write fail");
                 break;
             }
         }
@@ -136,13 +136,13 @@ int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_
             if (ret > 0) {
                 len_sent += ret;
             } else if (0 == ret) {
-                perror("No data be sent");
+                tcp_err("No data be sent");
             } else {
                 if (EINTR == errno) {
-                    perror("EINTR be caught");
+                    tcp_err("EINTR be caught");
                     continue;
                 }
-                perror("send fail");
+                tcp_err("send fail");
                 break;
             }
         }
@@ -152,7 +152,7 @@ int32_t TCP_Write(uintptr_t fd, const char *buf, uint32_t len, uint32_t timeout_
 
 
 
-int32_t TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
+int32_t HAL_TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
 {
     int ret, err_code;
     uint32_t len_recv;
@@ -177,22 +177,22 @@ int32_t TCP_Read(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
             if (ret > 0) {
                 len_recv += ret;
             } else if (0 == ret) {
-                perror("connection is closed");
+                tcp_err("connection is closed");
                 err_code = -1;
                 break;
             } else {
                 if (EINTR == errno) {
-                    perror("EINTR be caught");
+                    tcp_err("EINTR be caught");
                     continue;
                 }
-                perror("recv fail");
+                tcp_err("recv fail");
                 err_code = -2;
                 break;
             }
         } else if (0 == ret) {
             break;
         } else {
-            perror("select-recv fail");
+            tcp_err("select-recv fail");
             err_code = -2;
             break;
         }
@@ -208,7 +208,7 @@ int Send_Message(uintptr_t fd, const char *buf, uint32_t length, uint32_t timeou
     int sendbuflen = 4 + length; 
     unsigned char* sendbuf = (unsigned char *)malloc(sendbuflen);
     if (!sendbuf){
-        printf("GWTcpClient::SendMsg error \n");
+        tcp_err("GWTcpClient::SendMsg error \n");
         return -1;
     }
 
@@ -220,7 +220,7 @@ int Send_Message(uintptr_t fd, const char *buf, uint32_t length, uint32_t timeou
     sendbuf[3] = length&0xff;
    
     memcpy(sendbuf + 4, buf, length);
-    int ret = TCP_Write(fd, sendbuf, sendbuflen, timeout_ms);
+    int ret = HAL_TCP_Write(fd, sendbuf, sendbuflen, timeout_ms);
 	
     free(sendbuf);
     if(ret == sendbuflen)
@@ -234,12 +234,12 @@ int32_t Read_Message(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
     unsigned char packetlen_buf[PREREAD_LEN+1] = {0};
     int byte_num = recv(fd, packetlen_buf, PREREAD_LEN, 0);
     if (byte_num <= 0){
-    	printf("RECV MSG ERROR !!!\n");
+    	tcp_err("RECV MSG ERROR !!!\n");
         return -1;
     }
 
     if (byte_num != PREREAD_LEN){
-        printf("read packet length,RECV MSG ERROR !!!\n");
+        tcp_err("read packet length,RECV MSG ERROR !!!\n");
         return -1;
     }
 	
@@ -247,12 +247,12 @@ int32_t Read_Message(uintptr_t fd, char *buf, uint32_t len, uint32_t timeout_ms)
                             |(packetlen_buf[1]<<16)
                             |(packetlen_buf[2]<<8)
                             |packetlen_buf[3];
-    printf("packet length = %u ......\n", packetlen);
+    tcp_info("packet length = %u ......\n", packetlen);
     if(packetlen > len)
     {
- 	printf("packetlen great than input length\n");
+ 	tcp_info("packetlen great than input length\n");
 	packetlen = len;
     }
-    int ret = TCP_Read(fd, buf, packetlen, timeout_ms); 
+    int ret = HAL_TCP_Read(fd, buf, packetlen, timeout_ms); 
     return ret;
 }
